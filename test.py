@@ -9,8 +9,8 @@ up_id.main()
 time.sleep(5)
 #
 # #---------------------------------------------полдключение к бд
-pg_webapp_fastapi = Postgre_db("root", 'rvSNS#acAJ@Je0c-o23nIVe]/cc!wAS5Xvev', "89.110.90.190", '5432',
-                                            "agro_olymp")
+pg_webapp_fastapi = Postgre_db("", '', "", '',
+                                            "")
 
 
 pg_webapp_fastapi.set_connection()
