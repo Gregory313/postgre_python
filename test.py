@@ -12,6 +12,9 @@ time.sleep(5)
 pg_webapp_fastapi = Postgre_db("root", 'rvSNS#acAJ@Je0c-o23nIVe]/cc!wAS5Xvev', "89.110.90.190", '5432',
                                             "agro_olymp")
 
+
+pg_webapp_fastapi.set_connection()
+
 table_name = 'test2'
 #---------------------------------------------------------
 res = pg_webapp_fastapi.clear_table_and_reset_id(table_name)
@@ -165,3 +168,6 @@ if recs:
     print('show all table info')
     for r in recs:
         print(r)
+
+#------------------------------------------------------закрытие соединения
+pg_webapp_fastapi.close_connection()
