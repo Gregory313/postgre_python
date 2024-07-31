@@ -11,8 +11,12 @@ class Postgre_db():
         self.db_host = db_host
         self.db_port = db_port
         self.db_name = db_name
+        self.connection = self.set_connection()
 
     #---------------------------------------------------------------------------------------------
+    def close_connection(self):
+        self.connection.close()
+
     def set_connection(self):
         try:
             connection = psycopg2.connect(
@@ -22,6 +26,7 @@ class Postgre_db():
                 host=self.db_host,
                 port=self.db_port,
             )
+            self.connection = connection
             # print("------------------------------------------------------------")
             # print(f"ПОДКЛЮЧЕНО К {self.db_name}")
             # print("------------------------------------------------------------")
@@ -30,14 +35,11 @@ class Postgre_db():
             print(f"Ошибка '{e}' при подключении к {self.db_name}")
     #-------------------------------------------------------------------
     def is_safe_table_name(self, table_name):
-
-        connection = self.set_connection()
         try:
-            cursor = connection.cursor()
+            cursor = self.connection.cursor()
             cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")
             allowed_table_names = [row[0] for row in cursor.fetchall()]
             cursor.close()
-            connection.close()
         except OperationalError as e:
             print("------------------------------------------------------------")
             print(f"Ошибка '{e}' при подключении к базе данных")
@@ -47,14 +49,11 @@ class Postgre_db():
         return table_name in allowed_table_names
     #-------------------------------------------------------------------
     def is_safe_column_name(self, column_name):
-
-        connection = self.set_connection()
         try:
-            cursor = connection.cursor()
+            cursor = self.connection.cursor()
             cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public'")
             allowed_column_names = [row[0] for row in cursor.fetchall()]
             cursor.close()
-            connection.close()
             return column_name in allowed_column_names
         except OperationalError as e:
             print("------------------------------------------------------------")
@@ -71,9 +70,9 @@ class Postgre_db():
             # print(f"ИМЯ ТАБЛИЦЫ '{table_name}' НЕ ЯВЛЯЕТСЯ БЕЗОПАСНЫМ ДЛЯ ИСПОЛЬЗОВАНИЯ.")
             # print("------------------------------------------------------------")
             return
-        connection = self.set_connection()
+
         try:
-            with connection.cursor() as cursor:
+            with self.connection.cursor() as cursor:
                 query = f"SELECT * FROM {table_name};"
                 cursor.execute(query)
                 records = cursor.fetchall()
@@ -99,16 +98,13 @@ class Postgre_db():
             if not unsafe_columns:
                 columns = ', '.join(data.keys())
                 placeholders = ', '.join(['%s'] * len(data))
-
-                connection = self.set_connection()
                 try:
                     values = [self.convert_data(value) for value in data.values()]
-                    cursor = connection.cursor()
+                    cursor = self.connection.cursor()
                     query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
                     cursor.execute(query, values)
-                    connection.commit()
+                    self.connection.commit()
                     cursor.close()
-                    connection.close()
                     print("------------------------------------------------------------")
                     print(f"Запись добавлена в таблицу '{table_name}'.")
                     print("------------------------------------------------------------")
@@ -133,13 +129,11 @@ class Postgre_db():
     #-------------------------------------------------------------------
     def find_rows_by_column_value(self, table_name, column_name, value):
         if self.is_safe_table_name(table_name) and self.is_safe_column_name(column_name):
-            connection = self.set_connection()
-            cursor = connection.cursor()
+            cursor = self.connection.cursor()
             query = f"SELECT * FROM {table_name} WHERE {column_name} = %s"
             cursor.execute(query, (value,))
             rows = cursor.fetchall()
             cursor.close()
-            connection.close()
             if rows:
                 # print("------------------------------------------------------------")
                 # print(f"НАЙДЕНЫ СТРОКИ В КОЛОНКЕ {column_name.upper()}:", rows)
@@ -158,14 +152,12 @@ class Postgre_db():
     #-------------------------------------------------------------------
     def delete_row_by_column(self, table_name, column_name, value):
         if self.is_safe_table_name(table_name) and self.is_safe_column_name(column_name):
-            connection = self.set_connection()
-            cursor = connection.cursor()
+            cursor = self.connection.cursor()
             query = f"DELETE FROM {table_name} WHERE {column_name} = %s"
             cursor.execute(query, (value,))
-            connection.commit()
+            self.connection.commit()
             affected_rows = cursor.rowcount
             cursor.close()
-            connection.close()
 
             if affected_rows > 0:
                 # print("------------------------------------------------------------")
@@ -182,8 +174,7 @@ class Postgre_db():
     #-------------------------------------------------------------------
     def find_duplicates_by_column_value(self, table_name, column_name, value):
         if self.is_safe_table_name(table_name) and self.is_safe_column_name(column_name):
-            connection = self.set_connection()
-            cursor = connection.cursor()
+            cursor = self.connection.cursor()
             query = f"""
             SELECT {table_name}.*, COUNT({table_name}.{column_name}) OVER (PARTITION BY {table_name}.{column_name}) as cnt
             FROM {table_name}
@@ -193,7 +184,6 @@ class Postgre_db():
             results = cursor.fetchall()
             columns = [col[0] for col in cursor.description]
             cursor.close()
-            connection.close()
             duplicates = [dict(zip(columns, row)) for row in results if row[columns.index('cnt')] > 1]
             if duplicates:
                 # print("------------------------------------------------------------")
@@ -216,9 +206,8 @@ class Postgre_db():
         #-----------------------------------------------------------------
 
     def get_max_id(self, id_column, table_name):
-        connection = self.set_connection()
         query = f"SELECT MAX({id_column}) FROM {table_name};"
-        cursor = connection.cursor()
+        cursor = self.connection.cursor()
         cursor.execute(query)
         index = cursor.fetchone()[0]
         if index == None: index = 0
@@ -226,8 +215,7 @@ class Postgre_db():
     #-------------------------------------------------------------------
     def update_row(self, table_name, primary_key_column, new_data):
         if self.is_safe_table_name(table_name) and self.is_safe_column_name(primary_key_column):
-            connection = self.set_connection()
-            cursor = connection.cursor()
+            cursor = self.connection.cursor()
 
             update_columns = ', '.join(f"{key} = %s" for key in new_data if key != primary_key_column)
             values = [self.convert_data(new_data[key]) for key in new_data if key != primary_key_column]
@@ -236,8 +224,8 @@ class Postgre_db():
             try:
                 query = f"UPDATE {table_name} SET {update_columns} WHERE {primary_key_column} = %s"
                 cursor.execute(query, values)
-                connection = self.set_connection()
-                connection.commit()
+
+                self.connection.commit()
                 print("------------------------------------------------------------")
                 print("Данные успешно обновлены.")
                 print("------------------------------------------------------------")
@@ -247,7 +235,6 @@ class Postgre_db():
                 return False
             finally:
                 cursor.close()
-                connection.close()
         else:
             print("------------------------------------------------------------")
             print(
@@ -258,16 +245,15 @@ class Postgre_db():
     #-------------------------------------------------------------------
     def update_specific_column(self, table_name, primary_key_column, primary_key_value, column_name, new_value):
         if self.is_safe_table_name(table_name) and self.is_safe_column_name(column_name):
-            connection = self.set_connection()
-            cursor = connection.cursor()
+            cursor = self.connection.cursor()
 
             query = f"UPDATE {table_name} SET {column_name} = %s WHERE {primary_key_column} = %s"
             cursor.execute(query, (new_value, primary_key_value))
 
-            connection.commit()
+            self.connection.commit()
             cursor.close()
             # print("------------------------------------------------------------")
-            print(f"КОЛОНКА '{column_name}' ОБНОВЛЕНА.")
+            print(f"Колонка '{column_name}' успешно обновлена.")
             # print("------------------------------------------------------------")
             return True
         else:
@@ -278,15 +264,13 @@ class Postgre_db():
     #---------------------------------------------------------------------------------------------
     def clear_table_and_reset_id(self, table_name):
         if self.is_safe_table_name(table_name):
-            connection = self.set_connection()
-            cursor = connection.cursor()
+            cursor = self.connection.cursor()
 
             query_truncate_table = f"TRUNCATE TABLE {table_name} RESTART IDENTITY"
             cursor.execute(query_truncate_table)
 
-            connection.commit()
+            self.connection.commit()
             cursor.close()
-            connection.close()
 
             print("------------------------------------------------------------")
             print(f"ТАБЛИЦА '{table_name}' СБРОШЕНА.")
@@ -301,15 +285,12 @@ class Postgre_db():
 
     def find_specific_rows_by_column_value(self, table_name, column_name, value, *attributes):
         if self.is_safe_table_name(table_name) and self.is_safe_column_name(column_name):
-            connection = self.set_connection()
-            cursor = connection.cursor()
+            cursor = self.connection.cursor()
             columns = ', '.join(attributes) if attributes else '*'
             query = f"SELECT {columns} FROM {table_name} WHERE {column_name} = %s"
             cursor.execute(query, (value,))
             rows = cursor.fetchall()
-
             cursor.close()
-            connection.close()
             if rows:
                 all_rows = []
                 for row in rows:
@@ -331,8 +312,7 @@ class Postgre_db():
     def find_specific_rows_by_column_values(self, table_name, columns_to_select, **kwargs):
         if self.is_safe_table_name(table_name):
             if all(self.is_safe_column_name(col) for col in kwargs.keys()):
-                connection = self.set_connection()
-                cursor = connection.cursor()
+                cursor = self.connection.cursor()
                 columns = ', '.join(columns_to_select) if columns_to_select else '*'
 
                 where_clauses = []
@@ -355,9 +335,8 @@ class Postgre_db():
                 cursor.execute(query, values)
                 rows = cursor.fetchall()
                 print(rows)
-
                 cursor.close()
-                connection.close()
+
                 if rows:
                     all_rows = []
                     for row in rows:
@@ -383,8 +362,7 @@ class Postgre_db():
 
     def create_table(self, table_name, columns):
         try:
-            connection = self.set_connection()
-            cursor = connection.cursor()
+            cursor = self.connection.cursor()
 
             column_defs = [
                 sql.SQL("{} {}").format(
@@ -399,10 +377,7 @@ class Postgre_db():
             )
 
             cursor.execute(query)
-            connection.commit()
-
-            cursor.close()
-            connection.close()
+            self.connection.commit()
 
             print("------------------------------------------------------------")
             print(f"ТАБЛИЦА СОЗДАНА '{table_name}'")
@@ -412,6 +387,3 @@ class Postgre_db():
             print("------------------------------------------------------------")
             print(f"ОШБКА СОЗДАНИЯ ТАБЛИНЦЫ '{table_name}': {e}")
             print("------------------------------------------------------------")
-
-
-
