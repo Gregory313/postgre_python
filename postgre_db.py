@@ -387,3 +387,35 @@ class Postgre_db():
             print("------------------------------------------------------------")
             print(f"ОШБКА СОЗДАНИЯ ТАБЛИНЦЫ '{table_name}': {e}")
             print("------------------------------------------------------------")
+
+
+
+    #--------------------------------------------------------------------------------------------- END FUNCTIONAL
+
+    def add_column_to_table(self, tb_name, col_name, col_type, def_value=None):
+        try:
+            cursor = self.connection.cursor()
+
+            query = sql.SQL("ALTER TABLE {} ADD COLUMN {} {}").format(
+                sql.Identifier(tb_name),
+                sql.Identifier(col_name),
+                sql.SQL(col_type)
+            )
+
+            if def_value is not None:
+                query = query + sql.SQL(" DEFAULT {}").format(
+                    sql.Literal(def_value)
+                )
+
+            cursor.execute(query)
+            self.connection.commit()
+
+            print("------------------------------------------------------------")
+            print(f"КОЛОНКА '{col_name}' ДОБАВЛНА '{tb_name}'")
+            print("------------------------------------------------------------")
+
+        except psycopg2.Error as e:
+            print(f"{e}")
+
+
+        
