@@ -308,6 +308,7 @@ class Postgre_db():
             print("------------------------------------------------------------")
             return []
 
+    #---------------------------------------------------------------------------------------------
 
     def find_specific_rows_by_column_values(self, table_name, columns_to_select, **kwargs):
         if self.is_safe_table_name(table_name):
@@ -358,7 +359,7 @@ class Postgre_db():
             print("------------------------------------------------------------")
             return []
 
-    #--------------------------------------------------------------------------------------------- END FUNCTIONAL
+    #---------------------------------------------------------------------------------------------
 
     def create_table(self, table_name, columns):
         try:
@@ -389,9 +390,7 @@ class Postgre_db():
             print("------------------------------------------------------------")
 
 
-
-    #--------------------------------------------------------------------------------------------- END FUNCTIONAL
-
+    #---------------------------------------------------------------------------------------------
     def add_column_to_table(self, tb_name, col_name, col_type, def_value=None):
         try:
             cursor = self.connection.cursor()
@@ -416,6 +415,49 @@ class Postgre_db():
 
         except psycopg2.Error as e:
             print(f"{e}")
+
+
+    #---------------------------------------------------------------------------------------------
+
+    def drop_column_from_table(self, table_name, column_name):
+        try:
+            cursor = self.connection.cursor()
+
+            query = sql.SQL("ALTER TABLE {} DROP COLUMN {}").format(
+                    sql.Identifier(table_name),
+                    sql.Identifier(column_name)
+            )
+            cursor.execute(query)
+            self.connection.commit()
+
+            print("------------------------------------------------------------")
+            print(f"КОЛОНКА '{column_name}'УДАЛЕНА ИЗ'{table_name}'")
+            print("------------------------------------------------------------")
+
+        except psycopg2.Error as e:
+            print(f"{e}")
+
+    #---------------------------------------------------------------------------------------------
+    def drop_table(self, table_name):
+        try:
+            cursor = self.connection.cursor()
+
+            query = sql.SQL("DROP TABLE {}").format(
+                sql.Identifier(table_name)
+            )
+
+            cursor.execute(query)
+            self.connection.commit()
+
+            print("------------------------------------------------------------")
+            print(f"'{table_name}' DEL")
+            print("------------------------------------------------------------")
+
+        except psycopg2.Error as e:
+            print(f"{e}")
+
+
+    #--------------------------------------------------------------------------------------------- END FUNCTIONAL
 
 
         
