@@ -457,6 +457,20 @@ class Postgre_db():
             print(f"{e}")
 
 
+    #---------------------------------------------------------------------------------------------
+    def update_all_column_values(self,table_name, column_name, new_value):
+        try:
+            query = sql.SQL("UPDATE {} SET {} = {}").format(
+                sql.Identifier(table_name), 
+                sql.Identifier(column_name),    
+                sql.Literal(new_value) 
+            )
+
+            cursor.execute(query)
+            self.connection.commit()
+        except psycopg2.Error as e:
+            print(f"{e}")
+
     #--------------------------------------------------------------------------------------------- END FUNCTIONAL
 
 
