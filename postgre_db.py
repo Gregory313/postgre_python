@@ -459,6 +459,7 @@ class Postgre_db():
 
     #---------------------------------------------------------------------------------------------
     def update_all_column_values(self,table_name, column_name, new_value):
+        cursor = self.connection.cursor()
         try:
             query = sql.SQL("UPDATE {} SET {} = {}").format(
                 sql.Identifier(table_name),
